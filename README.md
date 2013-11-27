@@ -13,4 +13,4 @@ client:
     docker run -d raxcloud/raxcloud-queue-demo /usr/bin/python <home directory>/client.py -u <username> -k <apikey>
 
 
-The producer just posts a message at a fixed rate of time. The client claims and deletes a message at a fixed rate of time. 
+Here username and apikey are available in the mycloud.rackspace.com accounts link. The producer just posts a message at a fixed rate of time. The client claims and deletes a message at a fixed rate of time. You can run get_stats.py to see what the queue status is. This assumes that you use the same queue name for all of these scripts. 
