@@ -7,12 +7,6 @@ import sys
 import time
 import uuid
 
-#
-# Create may of class objects
-#
-mode = { "producer" : Producer,
-         "consumer" : Consumer,
-         "status"   : Monitor }
 
 class RaxCloudQueueClient(object):
 
@@ -68,6 +62,12 @@ class Monitor(RaxCloudQueueClient):
 
 
 def main():
+    #
+    # Create may of class objects
+    #
+    mode = { "producer" : Producer,
+             "consumer" : Consumer,
+             "status"   : Monitor }
     parser = OptionParser()
     parser.add_option("-u", "--user", dest="user", help="username")
     parser.add_option("-k", "--api_key", dest="api_key", help="apikey as shown in mycloud control panel.")
