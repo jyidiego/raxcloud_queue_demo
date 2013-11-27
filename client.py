@@ -32,7 +32,7 @@ def main():
     parser = OptionParser()
     parser.add_option("-u", "--user", dest="user", help="username")
     parser.add_option("-k", "--api_key", dest="api_key", help="apikey as shown in mycloud control panel.")
-    parser.add_option("-d", action="store_true", dest="debug")
+    parser.add_option("-d", action="store_true", help="debug", dest="debug")
     parser.add_option("-q", "--queue_name", dest="queue_name",
                       help="queue name for cloud queue.", default="demo0000")
     parser.add_option("-t", "--time_interval", dest="time_interval",
