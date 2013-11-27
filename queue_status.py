@@ -2,11 +2,12 @@
 
 from optparse import OptionParser
 import pyrax
+import pprint
 import sys
 import time
 import uuid
 
-class Producer(object):
+class Monitor(object):
 
     def __init__(self, username, api_key, queue_name='demo0000', time_interval=2, region="IAD", debug=False ):
         pyrax.set_setting('identity_type', 'rackspace')
@@ -18,17 +19,12 @@ class Producer(object):
         self.cq.client_id = str(uuid.uuid4()) # Randomly create a uuid client id
         self.queue_name = queue_name
         self.time_interval = time_interval
-        if not self.cq.queue_exists( self.queue_name ):
-            self.cq.create( queue_name )
 
     def run(self):
-        i = 0
         while True:
-            time.sleep( int(self.time_interval))
-            print "message: %s" % \
-                self.cq.post_message(self.queue_name, "client-id: %s\nsequence: %d" % (self.cq.client_id, i), ttl=300)
-            i += 1
-
+            pprint.pprint(self.cq.get_stats(self.queue_name))
+            print
+            time.sleep( self.time_interval )
 
 def main():
     parser = OptionParser()
@@ -38,8 +34,8 @@ def main():
     parser.add_option("-q", "--queue_name", dest="queue_name",
                       help="queue name for cloud queue.", default="demo0000")
     parser.add_option("-t", "--time_interval", dest="time_interval",
-                      help="time in seconds between message posts to queue.",
-                      default=2)
+                      help="time in seconds between status.",
+                      default=5)
     parser.add_option("-r", "--region_name", dest="region_name",
                       help="region (IAD, DFW, or ORD) for cloud queue.",
                       default="IAD")
@@ -53,7 +49,7 @@ def main():
         print "You need -a or --api_key option"
         sys.exit(1)
 
-    p = Producer(options.user, options.api_key, options.queue_name, options.time_interval, options.region_name, options.debug)
+    p = Monitor(options.user, options.api_key, options.queue_name, int(options.time_interval), options.region_name, options.debug)
     try:
         p.run()
     except KeyboardInterrupt:
@@ -61,3 +57,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

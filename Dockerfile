@@ -10,7 +10,7 @@ RUN pip install python-novaclient python-swiftclient python-heatclient python-ci
 # Setting the $HOME variable here
 ENV HOME /root
 # Uses raxcloud queues
-# run client with: docker run -d raxcloud/raxcloud-queue-demo /usr/bin/python /root/client.py -u <username> -k <apikey> 
+# run consumer with: docker run -d raxcloud/raxcloud-queue-demo /usr/bin/python /root/consumer.py -u <username> -k <apikey> 
 # run producer with: docker run -d raxcloud/raxcloud-queue-demo /usr/bin/python /root/producer.py -u <username> -k <apikey> 
-ADD ./producer.py $HOME/
-ADD ./client.py $HOME/
+ADD ./queue_demo.py $HOME/
+ENTRYPOINT [ "/root/queue_demo.py" ]
