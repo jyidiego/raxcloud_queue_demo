@@ -13,7 +13,7 @@ consumer:
     docker run -d raxcloud/raxcloud-queue-demo consumer -u <username> -k <apikey>
 
 
-Here <<<username>>> and <apikey> are available in the mycloud.rackspace.com accounts link. The producer just posts a message at a fixed rate of time. The consumer claims and deletes a message at a fixed rate of time. You can run get_stats.py to see what the queue status is. This assumes that you use the same queue name for all of these scripts. For a full list of available options just run the queue_demo.py without any options.
+Here <<username>> and <apikey> are available in the mycloud.rackspace.com accounts link. The producer just posts a message at a fixed rate of time. The consumer claims and deletes a message at a fixed rate of time. You can run get_stats.py to see what the queue status is. This assumes that you use the same queue name for all of these scripts. For a full list of available options just run the queue_demo.py without any options.
 
 ```
 You need to specify a mode like ['status', 'consumer', 'producer']
