@@ -7,9 +7,12 @@ import sys
 import time
 import uuid
 
-mode = { "producer" : "Producer",
-         "consumer" : "Consumer",
-         "status"   : "Monitor" }
+#
+# Create may of class objects
+#
+mode = { "producer" : Producer,
+         "consumer" : Consumer,
+         "status"   : Monitor }
 
 class RaxCloudQueueClient(object):
 
@@ -94,8 +97,8 @@ def main():
         print "You need -a or --api_key option"
         sys.exit(1)
 
-    if  args[0] in mode: 
-        obj_init = eval(mode[args[0]])
+    if args[0] in mode: 
+        obj_init = mode[args[0]]
         m = obj_init(options.user, options.api_key, options.queue_name, options.time_interval, options.region_name, options.debug)
     else:
         print "The mode %s doesn't exist it must be one of %s" % (args[0], mode.keys())
