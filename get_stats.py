@@ -1,10 +1,11 @@
 from optparse import OptionParser
 import pyrax
+import pprint
 import sys
 import time
 import uuid
 
-class Client(object):
+class Monitor(object):
 
     def __init__(self, username, api_key, queue_name='demo0000', time_interval=2, region="IAD", debug=False ):
         pyrax.set_setting('identity_type', 'rackspace')
@@ -17,16 +18,11 @@ class Client(object):
         self.queue_name = queue_name
         self.time_interval = time_interval
 
-    def run( self ):
+    def run(self):
         while True:
-            m = self.cq.claim_messages(self.queue_name, 300, 300, 1) # take default 300 ttl and grace, 1 message per iter
-            if m:
-                print "Processing message id %s" % m.id
-                time.sleep( self.time_interval )
-                for i in m.messages:
-                    i.delete(claim_id=i.claim_id)
-            else:  
-                print "No messages to process..."
+            pprint.pprint("%s" % self.cq.get_stats(self.queue_name))
+            print
+            time.sleep( self.time_interval )
 
 def main():
     parser = OptionParser()
@@ -36,8 +32,8 @@ def main():
     parser.add_option("-q", "--queue_name", dest="queue_name",
                       help="queue name for cloud queue.", default="demo0000")
     parser.add_option("-t", "--time_interval", dest="time_interval",
-                      help="time in seconds between message subscription and deletion.",
-                      default=2)
+                      help="time in seconds between status.",
+                      default=5)
     parser.add_option("-r", "--region_name", dest="region_name",
                       help="region (IAD, DFW, or ORD) for cloud queue.",
                       default="IAD")
@@ -51,7 +47,7 @@ def main():
         print "You need -a or --api_key option"
         sys.exit(1)
 
-    p = Client(options.user, options.api_key, options.queue_name, int(options.time_interval), options.region_name, options.debug)
+    p = Monitor(options.user, options.api_key, options.queue_name, int(options.time_interval), options.region_name, options.debug)
     try:
         p.run()
     except KeyboardInterrupt:
@@ -59,3 +55,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
