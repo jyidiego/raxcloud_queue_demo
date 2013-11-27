@@ -28,7 +28,6 @@ Options:
                         time in seconds between message claim and deletion.
   -r REGION_NAME, --region_name=REGION_NAME
                         region (IAD, DFW, or ORD) for cloud queue.
-You need -u or --user option
 ```
 
 ```
@@ -45,5 +44,4 @@ Options:
                         time in seconds between message posts to queue.
   -r REGION_NAME, --region_name=REGION_NAME
                         region (IAD, DFW, or ORD) for cloud queue.
-You need -u or --user option
 ```
