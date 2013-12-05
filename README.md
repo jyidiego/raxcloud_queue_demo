@@ -5,12 +5,12 @@ A simple demo of the rackspace cloud queues. This demo uses docker to setup the 
 
 producer:
 
-    docker run -d raxcloud/raxcloud-queue-demo producer -u <username> -k <apikey>
+    docker run -d raxcloud/queue-demo producer -u <username> -k <apikey>
 
 
 consumer:
 
-    docker run -d raxcloud/raxcloud-queue-demo consumer -u <username> -k <apikey>
+    docker run -d raxcloud/queue-demo consumer -u <username> -k <apikey>
 
 
 Here '''username''' and '''apikey''' are available in the mycloud.rackspace.com accounts link. The producer just posts a message at a fixed rate of time. The consumer claims and deletes a message at a fixed rate of time. You can run status to see what the queue status is. This assumes that you use the same queue name for all of these scripts. For a full list of available options just run the queue_demo.py without any options.
