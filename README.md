@@ -1,7 +1,7 @@
 Rackspace Cloud Queue Demo
 ===================
 
-A simple demo of the rackspace cloud queues. This demo uses docker to setup the environment. You just need to run:
+A simple demo of the rackspace cloud queues. This particular demo shows a simple work queue (Producer/Consumer or transactional job queue). To setup this demo run:
 
 producer:
 
