@@ -29,7 +29,7 @@ class Producer(RaxCloudQueueClient):
         # Create cloud queue if this does not exist.
         #
         if not self.cq.queue_exists( self.queue_name ):
-            self.cq.create( queue_name )
+            self.cq.create( self.queue_name )
 
     def run(self):
         i = 0
