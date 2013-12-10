@@ -19,7 +19,9 @@ class Monitor(queue_demo.RaxCloudQueueClient):
 
     def create_scaling_group(self, group_name, \
                              min_entities, max_entities, server_name, \
-                             cooldown, flavor, image, free_count ):
+                             cooldown, flavor, image, free_count, load_balancers=(), \
+                             networks=[ {'uuid': '11111111-1111-1111-1111-111111111111'}, \
+                                        {'uuid': '00000000-0000-0000-0000-000000000000'} ] ):
         '''
         This will create a a scaling group with default values.
         '''
@@ -27,7 +29,7 @@ class Monitor(queue_demo.RaxCloudQueueClient):
         # load_balancers = ()
         self.sg = self.au.create( name=group_name, cooldown=cooldown, min_entities=min_entities, \
                            max_entities=max_entities, server_name=server_name, \
-                           flavor=flavor, image=image, \
+                           flavor=flavor, image=image, load_balancers=load_balancers, networks=networks, \
                            launch_config_type="launch_server", disk_config="AUTO" )
         self.policy_up = self.sg.add_policy( name="policy up", policy_type="webhook", \
                                           cooldown=cooldown, change=1 )
