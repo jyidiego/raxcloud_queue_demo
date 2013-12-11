@@ -51,7 +51,7 @@ class Monitor(queue_demo.RaxCloudQueueClient):
                 print "Scaling up using policy %s" % self.policy 
             elif self.cq.get_stats(self.queue_name)['free'] < int(free_count) and \
                     self.sg.get_state()['active_capacity'] != 0:
-                self.policy_down.execute()
+                self.policy_dn.execute()
                 print "Scaling down using policy %s" % self.policy 
             time.sleep( int(self.time_interval) )
 
@@ -65,6 +65,15 @@ def main():
     parser.add_option("-u", "--user", dest="user", help="username")
     parser.add_option("-k", "--api_key", dest="api_key", help="apikey as shown in mycloud control panel.")
     parser.add_option("-d", action="store_true", help="debug", dest="debug")
+    parser.add_option("-g", "--group_name", dest="group_name", help="scaling group name. default name demo", default="demo")
+    parser.add_option("-c", "--cool_down", dest="cool_down", help="cool down time in seconds. default 60 secs.", default="60")
+    parser.add_option("-x", "--max", dest="max", help="max number of servers in group. default 2.", default="2")
+    parser.add_option("-m", "--min", dest="min", help="min number of servers in group. default 0.", default="0")
+    parser.add_option("-i", "--image", dest="image", help="server image id.")
+    parser.add_option("-l", "--flavor", dest="flavor", help="flavor name. default performance1-1", default="performance1-1")
+    parser.add_option("-s", "--server_name", dest="server_name",
+                      help="server name. default server name consumer.",
+                      default="consumer")
     parser.add_option("-q", "--queue_name", dest="queue_name",
                       help="queue name for cloud queue.", default="demo0000")
     parser.add_option("-t", "--time_interval", dest="time_interval",
@@ -74,7 +83,7 @@ def main():
                       help="region (IAD, DFW, or ORD) for cloud queue.",
                       default="IAD")
     parser.add_option("-f", "--free_count", dest="free_count",
-                      help="Number of free messages (i.e. not claimed) to trigger autoscale", default=100)
+                      help="Number of free messages (i.e. not claimed) to trigger autoscale", default="100")
     (options, args) = parser.parse_args()
 
     if not args:
@@ -89,10 +98,17 @@ def main():
         parser.print_help()
         print "You need -a or --api_key option"
         sys.exit(1)
+    if not options.image:
+        parser.print_help()
+        print "You need -i or --image option"
+        sys.exit(1)
 
     if args[0] in mode: 
         obj_init = mode[args[0]]
         m = obj_init(options.user, options.api_key, options.queue_name, options.time_interval, options.region_name, options.debug)
+        m.create_scaling_group( options.group_name, int(options.cool_down), int(options.min), \
+                                int(options.max), options.server_name, options.flavor, \
+                                options.image, options.free_count)
     else:
         print "The mode %s doesn't exist it must be one of %s" % (args[0], mode.keys())
         sys.exit(1)
