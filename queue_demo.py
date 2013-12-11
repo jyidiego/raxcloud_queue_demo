@@ -52,7 +52,7 @@ class Consumer(RaxCloudQueueClient):
             else:
                 print "No messages to process..."
 
-class Monitor(RaxCloudQueueClient):
+class Status(RaxCloudQueueClient):
     
     def run(self):
         while True:
@@ -60,32 +60,110 @@ class Monitor(RaxCloudQueueClient):
             print
             time.sleep( int(self.time_interval) )
 
+class Monitor(RaxCloudQueueClient):
+
+    def __init__(self, *args, **kwargs):
+        super(Monitor, self).__init__(*args, **kwargs)
+        print "args: %s" % args[4]
+        self.au = pyrax.connect_to_autoscale(region=args[4])
+        self.sg = None
+        self.policy_up = self.policy_dn = None
+
+    def create_scaling_group(self, group_name, \
+                             min_entities, max_entities, server_name, \
+                             cooldown, flavor, image, free_count, load_balancers=(), \
+                             networks=[ {'uuid': '11111111-1111-1111-1111-111111111111'}, \
+                                        {'uuid': '00000000-0000-0000-0000-000000000000'} ] ):
+        '''
+        This will create a a scaling group with default values.
+        '''
+        # metadata = {}
+        # load_balancers = ()
+        self.free_count = free_count
+        self.sg = self.au.create( name=group_name, cooldown=cooldown, min_entities=min_entities, \
+                                  max_entities=max_entities, server_name=server_name, \
+                                  flavor=flavor, image=image, load_balancers=load_balancers, networks=networks, \
+                                  launch_config_type="launch_server", disk_config="AUTO" )
+        self.policy_up = self.sg.add_policy( name="policy up", policy_type="webhook", \
+                                          cooldown=cooldown, change=1 )
+        self.policy_dn = self.sg.add_policy( name="policy down", policy_type="webhook", \
+                                          cooldown=cooldown, change=-1 )
+
+    def get_scaling_group(self, group_name, free_count):
+        for sg in self.au.list():
+            if group_name == sg.name:
+                self.sg = sg
+                self.free_count = free_count 
+                # this is horrible but expect just one up policy and one down.
+                for i in sg.policies:
+                    if i.change == 1:
+                       self.policy_up = i
+                    elif i.change == -1:
+                       self.policy_dn = i
+
+    def delete_scaling_group(self):
+        if self.sg:
+            self.sg.delete()
+
+    def list_policies(self):
+        return self.sg.list_policies()
+    
+    def run(self):
+        while True:
+            pprint(self.cq.get_stats(self.queue_name))
+            try:
+                if self.cq.get_stats(self.queue_name)['free'] > int(self.free_count):
+                    self.policy_up.execute()
+                    print "Scaling up using policy %s" % self.policy_up 
+                elif self.cq.get_stats(self.queue_name)['free'] < int(self.free_count) and \
+                        self.sg.get_state()['active_capacity'] != 0:
+                    self.policy_dn.execute()
+                    print "Scaling down using policy %s" % self.policy_dn
+            except pyrax.exceptions.Forbidden,e:
+                print "Policy didn't execute waiting for next time interval: %s" % e
+            time.sleep( int(self.time_interval) )
+
 
 def main():
     #
     # Create may of class objects
     #
-    mode = { "producer" : Producer,
-             "consumer" : Consumer,
-             "status"   : Monitor }
+    mode0 = { "producer" : Producer,
+              "consumer" : Consumer,
+              "status"   : Status } 
+    mode1 = { "monitor"  : Monitor }
     parser = OptionParser()
     parser.add_option("-u", "--user", dest="user", help="username")
     parser.add_option("-k", "--api_key", dest="api_key", help="apikey as shown in mycloud control panel.")
     parser.add_option("-d", action="store_true", help="debug", dest="debug")
+    parser.add_option("-g", "--group_name", dest="group_name", help="scaling group name. default name demo", default="demo")
+    parser.add_option("-c", "--cool_down", dest="cool_down", help="cool down time in seconds. default 60 secs.", default="60")
+    parser.add_option("-x", "--max", dest="max", help="max number of servers in group. default 2.", default="2")
+    parser.add_option("-m", "--min", dest="min", help="min number of servers in group. default 0.", default="0")
+    parser.add_option("-i", "--image", dest="image", help="server image id.")
+    parser.add_option("-l", "--flavor", dest="flavor", help="flavor name. default performance1-1", default="performance1-1")
+    parser.add_option("-s", "--server_name", dest="server_name",
+                      help="server name. default server name consumer.",
+                      default="consumer")
     parser.add_option("-q", "--queue_name", dest="queue_name",
                       help="queue name for cloud queue.", default="demo0000")
     parser.add_option("-t", "--time_interval", dest="time_interval",
-                      help="producer: time in seconds between message post to queue.\n \
-                            consumer: time in seconds between subscribing to a message and deleting.\n \
-                            status: time in seconds between status checks of the queue.",
+                      help="producer: time in seconds between message post to queue. \
+ consumer: time in seconds between subscribing to a message and deleting. \
+ monitor: time in seconds between queue monitoring. \
+ status: time in seconds between status checks of the queue.",
                       default=2)
     parser.add_option("-r", "--region_name", dest="region_name",
                       help="region (IAD, DFW, or ORD) for cloud queue.",
                       default="IAD")
+    parser.add_option("-f", "--free_count", dest="free_count",
+                      help="Number of free messages (i.e. not claimed) to trigger autoscale", default="100")
+
     (options, args) = parser.parse_args()
 
     if not args:
-        print "You need to specify a mode like %s" % mode.keys()
+        l = mode0.keys() + mode1.keys()
+        print "You need to specify a mode like %s" % l
         sys.exit(1)
 
     if not options.user:
@@ -97,11 +175,26 @@ def main():
         print "You need -a or --api_key option"
         sys.exit(1)
 
-    if args[0] in mode: 
-        obj_init = mode[args[0]]
+    if args[0] in mode0: 
+        obj_init = mode0[args[0]]
         m = obj_init(options.user, options.api_key, options.queue_name, options.time_interval, options.region_name, options.debug)
+    elif args[0] in mode1: 
+        obj_init = mode1[args[0]]
+        m = obj_init(options.user, options.api_key, options.queue_name, options.time_interval, options.region_name, options.debug)
+        if not options.image:
+            parser.print_help()
+            print "You need -i or --image option"
+            sys.exit(1)
+        if not options.group_name in [ i.name for i in m.au.list() ]:
+            m.create_scaling_group( options.group_name, int(options.min), int(options.max), \
+                                    options.server_name, int(options.cool_down), options.flavor, \
+                                    options.image, options.free_count )
+        else:
+            m.get_scaling_group(options.group_name, options.free_count)
+            print "Scaling group already exists."
+
     else:
-        print "The mode %s doesn't exist it must be one of %s" % (args[0], mode.keys())
+        print "The mode %s doesn't exist it must be one of %s" % (args[0], mode0.keys() + mode1.keys())
         sys.exit(1)
 
     try:
