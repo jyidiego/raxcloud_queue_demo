@@ -35,22 +35,29 @@ class Producer(RaxCloudQueueClient):
         i = 0
         while True:
             time.sleep( int(self.time_interval))
-            print "message: %s" % \
-                self.cq.post_message(self.queue_name, "client-id: %s\nsequence: %d" % (self.cq.client_id, i), ttl=300)
+            try:
+                print "message: %s" % \
+                    self.cq.post_message(self.queue_name, "client-id: %s\nsequence: %d" % (self.cq.client_id, i), ttl=300)
+            except pyrax.exceptions.ClientException,e:
+                print "Couldn't post message: %s" % e
             i += 1
 
 class Consumer(RaxCloudQueueClient):
 
     def run( self ):
         while True:
-            m = self.cq.claim_messages(self.queue_name, 300, 300, 1) # take default 300 ttl and grace, 1 message per iter
-            if m:
-                print "Processing message id %s" % m.id
-                time.sleep( int(self.time_interval) )
-                for i in m.messages:
-                    i.delete(claim_id=i.claim_id)
-            else:
-                print "No messages to process..."
+            try:
+                m = self.cq.claim_messages(self.queue_name, 300, 300, 1) # take default 300 ttl and grace, 1 message per iter
+                if m:
+                    print "Processing message id %s" % m.id
+                    time.sleep( int(self.time_interval) )
+                    for i in m.messages:
+                        i.delete(claim_id=i.claim_id)
+                else:
+                    print "No messages to process..."
+            except pyrax.exceptions.ClientException,e:
+                print "Couldn't claim or delete message: %s" % e
+
 
 class Status(RaxCloudQueueClient):
     
