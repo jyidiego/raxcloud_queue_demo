@@ -78,7 +78,8 @@ class Monitor(RaxCloudQueueClient):
 
     def create_scaling_group(self, group_name, \
                              min_entities, max_entities, server_name, \
-                             cooldown, flavor, image, free_count, load_balancers=(), \
+                             cooldown, flavor, image, scale_up_threshold, scale_dn_threshold, \
+                             load_balancers=(), \
                              networks=[ {'uuid': '11111111-1111-1111-1111-111111111111'}, \
                                         {'uuid': '00000000-0000-0000-0000-000000000000'} ] ):
         '''
@@ -86,7 +87,8 @@ class Monitor(RaxCloudQueueClient):
         '''
         # metadata = {}
         # load_balancers = ()
-        self.free_count = free_count
+        self.scale_up_threshold = scale_up_threshold
+        self.scale_dn_threshold = scale_dn_threshold
         self.sg = self.au.create( name=group_name, cooldown=cooldown, min_entities=min_entities, \
                                   max_entities=max_entities, server_name=server_name, \
                                   flavor=flavor, image=image, load_balancers=load_balancers, networks=networks, \
@@ -96,11 +98,12 @@ class Monitor(RaxCloudQueueClient):
         self.policy_dn = self.sg.add_policy( name="policy down", policy_type="webhook", \
                                           cooldown=cooldown, change=-1 )
 
-    def get_scaling_group(self, group_name, free_count):
+    def get_scaling_group(self, group_name, scale_up_threshold, scale_dn_threshold):
         for sg in self.au.list():
             if group_name == sg.name:
                 self.sg = sg
-                self.free_count = free_count 
+                self.scale_up_threshold = scale_up_threshold
+                self.scale_dn_threshold = scale_dn_threshold
                 # this is horrible but expect just one up policy and one down.
                 for i in sg.policies:
                     if i.change == 1:
@@ -119,10 +122,10 @@ class Monitor(RaxCloudQueueClient):
         while True:
             pprint(self.cq.get_stats(self.queue_name))
             try:
-                if self.cq.get_stats(self.queue_name)['free'] > int(self.free_count):
+                if self.cq.get_stats(self.queue_name)['free'] > int(self.scale_up_threshold):
                     self.policy_up.execute()
                     print "Scaling up using policy %s" % self.policy_up 
-                elif self.cq.get_stats(self.queue_name)['free'] < int(self.free_count) and \
+                elif self.cq.get_stats(self.queue_name)['free'] < int(self.scale_dn_threshold) and \
                         self.sg.get_state()['active_capacity'] != 0:
                     self.policy_dn.execute()
                     print "Scaling down using policy %s" % self.policy_dn
@@ -163,8 +166,10 @@ def main():
     parser.add_option("-r", "--region_name", dest="region_name",
                       help="region (IAD, DFW, or ORD) for cloud queue.",
                       default="IAD")
-    parser.add_option("-f", "--free_count", dest="free_count",
-                      help="Number of free messages (i.e. not claimed) to trigger autoscale", default="100")
+    parser.add_option("-j", "--scale_up_threshold", dest="scale_up_threshold",
+                      help="Number of free messages (i.e. not claimed) to trigger scale up", default="100")
+    parser.add_option("-n", "--scale_dn_threshold", dest="scale_dn_threshold",
+                      help="Number of messages (i.e. not claimed) to trigger scale down", default="0")
 
     (options, args) = parser.parse_args()
 
@@ -195,9 +200,9 @@ def main():
         if not options.group_name in [ i.name for i in m.au.list() ]:
             m.create_scaling_group( options.group_name, int(options.min), int(options.max), \
                                     options.server_name, int(options.cool_down), options.flavor, \
-                                    options.image, options.free_count )
+                                    options.image, options.scale_up_threshold, options.scale_dn_threshold )
         else:
-            m.get_scaling_group(options.group_name, options.free_count)
+            m.get_scaling_group(options.group_name, options.scale_up_threshold, options.scale_dn_threshold)
             print "Scaling group already exists."
 
     else:
