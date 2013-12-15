@@ -131,6 +131,10 @@ class Monitor(RaxCloudQueueClient):
                     print "Scaling down using policy %s" % self.policy_dn
             except pyrax.exceptions.Forbidden,e:
                 print "Policy didn't execute waiting for next time interval: %s" % e
+            except pyrax.exceptions.BadRequest,e:
+                print "Policy didn't execute waiting for next time interval: %s" % e
+            except pyrax.exceptions.ClientException,e:
+                print "Policy didn't execute waiting for next time interval: %s" % e
             time.sleep( int(self.time_interval) )
 
 
