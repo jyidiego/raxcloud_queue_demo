@@ -40,6 +40,12 @@ class Producer(RaxCloudQueueClient):
                     self.cq.post_message(self.queue_name, "client-id: %s\nsequence: %d" % (self.cq.client_id, i), ttl=300)
             except pyrax.exceptions.ClientException,e:
                 print "Couldn't post message: %s" % e
+            except pyrax.exceptions.AuthenticationFailed,e:
+                print "Authentication failed, will attempt to re-authenticate"
+                client_id = self.cq.client_id # save the id to re-use
+                region = self.cq.region_name
+                self.cq = pyrax.connect_to_queues(region=region)
+                self.cq.client_id = client_id
             i += 1
 
 class Consumer(RaxCloudQueueClient):
