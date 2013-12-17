@@ -25,14 +25,32 @@ Options:
   -k API_KEY, --api_key=API_KEY
                         apikey as shown in mycloud control panel.
   -d                    debug
+  -g GROUP_NAME, --group_name=GROUP_NAME
+                        scaling group name. default name demo
+  -c COOL_DOWN, --cool_down=COOL_DOWN
+                        cool down time in seconds. default 60 secs.
+  -x MAX, --max=MAX     max number of servers in group. default 2.
+  -m MIN, --min=MIN     min number of servers in group. default 0.
+  -i IMAGE, --image=IMAGE
+                        server image id.
+  -l FLAVOR, --flavor=FLAVOR
+                        flavor name. default performance1-1
+  -s SERVER_NAME, --server_name=SERVER_NAME
+                        server name. default server name consumer.
   -q QUEUE_NAME, --queue_name=QUEUE_NAME
-                        queue name for cloud queue.
+                        queue name for cloud queue. default is demo0000
   -t TIME_INTERVAL, --time_interval=TIME_INTERVAL
                         producer: time in seconds between message post to
-                        queue.                              consumer: time in
-                        seconds between subscribing to a message and deleting.
-                        status: time in seconds between status checks of the
-                        queue.
+                        queue.  consumer: time in seconds between subscribing
+                        to a message and deleting.  monitor: time in seconds
+                        between queue monitoring.  status: time in seconds
+                        between status checks of the queue.
   -r REGION_NAME, --region_name=REGION_NAME
                         region (IAD, DFW, or ORD) for cloud queue.
+  -j SCALE_UP_THRESHOLD, --scale_up_threshold=SCALE_UP_THRESHOLD
+                        Number of free messages (i.e. not claimed) to trigger
+                        scale up
+  -n SCALE_DN_THRESHOLD, --scale_dn_threshold=SCALE_DN_THRESHOLD
+                        Number of messages (i.e. not claimed) to trigger scale
+                        down
 ```
