@@ -166,7 +166,7 @@ def main():
                       help="server name. default server name consumer.",
                       default="consumer")
     parser.add_option("-q", "--queue_name", dest="queue_name",
-                      help="queue name for cloud queue.", default="demo0000")
+                      help="queue name for cloud queue. default is demo0000", default="demo0000")
     parser.add_option("-t", "--time_interval", dest="time_interval",
                       help="producer: time in seconds between message post to queue. \
  consumer: time in seconds between subscribing to a message and deleting. \
