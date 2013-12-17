@@ -1,4 +1,4 @@
-# DOCKER-VERSION 0.5.3
+# DOCKER-VERSION 0.7.2
 FROM ubuntu:12.10
 MAINTAINER John Yi "john.yi@rackspace.com"
 
@@ -10,7 +10,8 @@ RUN pip install python-novaclient python-swiftclient python-heatclient python-ci
 # Setting the $HOME variable here
 ENV HOME /root
 # Uses raxcloud queues
-# run consumer with: docker run -d raxcloud/raxcloud-queue-demo /usr/bin/python /root/consumer.py -u <username> -k <apikey> 
-# run producer with: docker run -d raxcloud/raxcloud-queue-demo /usr/bin/python /root/producer.py -u <username> -k <apikey> 
+# run producer with: docker run -d raxcloud/raxcloud-queue-demo producer -u <username> -k <apikey> 
+# run consumer with: docker run -d raxcloud/raxcloud-queue-demo consumer -u <username> -k <apikey> 
+# run autoscale with: docker run -d raxcloud/raxcloud-queue-demo monitor -u <username> -k <apikey> 
 ADD ./queue_demo.py $HOME/
 ENTRYPOINT [ "/root/queue_demo.py" ]
