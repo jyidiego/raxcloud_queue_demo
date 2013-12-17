@@ -152,7 +152,13 @@ def main():
               "consumer" : Consumer,
               "status"   : Status } 
     mode1 = { "monitor"  : Monitor }
-    parser = OptionParser()
+    usage = '''Usage: queue_demo.py [options]
+status: print out the queue status
+consumer: claim and delete a message of the queue as specified by the options
+producer: add a message onto the queue as specified by the options
+monitor: use autoscale to spin up or down a server as specified by the options
+'''
+    parser = OptionParser(usage=usage)
     parser.add_option("-u", "--user", dest="user", help="username")
     parser.add_option("-k", "--api_key", dest="api_key", help="apikey as shown in mycloud control panel.")
     parser.add_option("-d", action="store_true", help="debug", dest="debug")
