@@ -307,7 +307,8 @@ def main():
     mode0 = { "producer" : Producer,
               "consumer" : Consumer,
               "status"   : Status }
-    mode1 = { "monitor"  : Monitor }
+    mode1 = { "monitor"  : Monitor,
+              "delete"   : Monitor }
     usage = '''Usage: queue_demo.py [options]
 status: print out the queue status
 consumer: claim and delete a message of the queue as specified by the options
@@ -364,6 +365,22 @@ monitor: use autoscale to spin up or down a server as specified by the options
         obj_init = mode0[args[0]]
         m = obj_init(options.user, options.api_key, options.queue_name, options.time_interval, options.region_name, options.debug)
     elif args[0] in mode1:
+        if args[0] == 'delete':
+            scaling_group = DemoScalingGroup( username=options.user, \
+                                              api_key=options.api_key, \
+                                              region=options.region_name, \
+                                              group_name=options.group_name, \
+                                              server_name=options.server_name, \
+                                              cooldown=0, \
+                                              min_entities=0, \
+                                              max_entities=1, \
+                                              flavor=options.flavor, \
+                                              image=None, \
+                                              debug=False )
+            print "Delete scaling_group: %s" % scaling_group.sg.name
+            scaling_group.delete_scaling_group()
+            sys.exit(0)
+
         rax_cld_queue_client = RaxCloudQueueClient( options.user, options.api_key, options.queue_name, \
                                                     options.time_interval, options.region_name, options.debug )
 
@@ -403,6 +420,7 @@ monitor: use autoscale to spin up or down a server as specified by the options
                                           flavor=options.flavor, \
                                           image=image.id, \
                                           debug=False )
+
 
         m = Monitor( rax_cld_queue_client=rax_cld_queue_client, \
                      scaling_group=scaling_group, \
