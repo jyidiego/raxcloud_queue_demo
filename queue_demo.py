@@ -233,7 +233,8 @@ class ServerImage(object):
                   region, \
                   debug=False):
         pyrax.set_setting('identity_type', 'rackspace')
-        if debug:
+        self.debug = debug
+        if self.debug:
             print "username: %s" % username
             print "api_key: %s" % api_key
         pyrax.set_credentials( username, api_key )
@@ -275,7 +276,10 @@ class ServerImage(object):
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy()) 
         print "Password change taking effect..."
         time.sleep(5) # give nova time to change the password
-        client.connect(srv.networks['public'][0], username='root', password=password)
+        if self.debug:
+            print "srv.networks: %s" % srv.networks
+            print "srv.networks['private'][0]: %s" % srv.networks['private'][0]
+        client.connect(srv.networks['private'][0], username='root', password=password)
 
         stdin, stdout, stderr = client.exec_command('/bin/bash /tmp/docker_install.sh')
         for line in stdout:                                         
