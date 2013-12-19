@@ -383,7 +383,10 @@ monitor: use autoscale to spin up or down a server as specified by the options
                     print "You need -i or --image option"
                     sys.exit(1)
         else:
-            image_id = options.image
+            pyrax.set_setting('identity_type', 'rackspace')
+            cs = pyrax.connect_to_cloudservers(region=options.region_name)
+            # Really just need image id but may need image object sometime in the future
+            image = cs.images.get(options.image)
 
         scaling_group = DemoScalingGroup( username=options.user, \
                                           api_key=options.api_key, \
