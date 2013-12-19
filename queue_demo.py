@@ -366,20 +366,27 @@ monitor: use autoscale to spin up or down a server as specified by the options
         m = obj_init(options.user, options.api_key, options.queue_name, options.time_interval, options.region_name, options.debug)
     elif args[0] in mode1:
         if args[0] == 'delete':
-            scaling_group = DemoScalingGroup( username=options.user, \
-                                              api_key=options.api_key, \
-                                              region=options.region_name, \
-                                              group_name=options.group_name, \
-                                              server_name=options.server_name, \
-                                              cooldown=0, \
-                                              min_entities=0, \
-                                              max_entities=1, \
-                                              flavor=options.flavor, \
-                                              image=None, \
-                                              debug=False )
-            print "Delete scaling_group: %s" % scaling_group.sg.name
-            scaling_group.delete_scaling_group()
-            sys.exit(0)
+            pyrax.set_setting('identity_type', 'rackspace')
+            pyrax.set_credentials(options.user, options.api_key)
+            au = pyrax.connect_to_autoscale(region=options.region_name)
+            if options.group_name in [ i.name for i in au.list() ]:
+                scaling_group = DemoScalingGroup( username=options.user, \
+                                                  api_key=options.api_key, \
+                                                  region=options.region_name, \
+                                                  group_name=options.group_name, \
+                                                  server_name=options.server_name, \
+                                                  cooldown=0, \
+                                                  min_entities=0, \
+                                                  max_entities=1, \
+                                                  flavor=options.flavor, \
+                                                  image=None, \
+                                                  debug=False )
+                print "Delete scaling_group: %s (if not given --group_name option default is demo)" % scaling_group.sg.name
+                scaling_group.delete_scaling_group()
+                sys.exit(0)
+            else:
+                print "Scaling group %s doesn't exist (if not given --group_name option default is demo)" % options.group_name
+                sys.exit(0)
 
         rax_cld_queue_client = RaxCloudQueueClient( options.user, options.api_key, options.queue_name, \
                                                     options.time_interval, options.region_name, options.debug )
