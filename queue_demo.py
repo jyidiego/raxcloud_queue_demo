@@ -3,10 +3,31 @@
 from optparse import OptionParser
 from pprint import pprint
 import pyrax
+import random
+import string
 import sys
 import time
 import uuid
 
+#
+# Install file for docker
+#
+docker_install = '''#!/bin/bash
+
+apt-get update
+apt-get -y install linux-image-extra-`uname -r`
+
+sh -c "wget -qO- https://get.docker.io/gpg | apt-key add -"
+sh -c "echo deb http://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list"
+apt-get update
+apt-get -y install lxc-docker
+'''
+
+files = {"/tmp/docker_install.sh" : docker_install}
+
+def password_generator():
+    characters = string.ascii_letters + '@!_#$&' + string.digits
+    return "".join(random.choice(characters) for x in range(random.randint(8, 15)))
 
 class RaxCloudQueueClient(object):
 
@@ -18,18 +39,14 @@ class RaxCloudQueueClient(object):
         pyrax.set_credentials( username, api_key )
         self.cq = pyrax.connect_to_queues(region=region) # Demo to run out of IAD
         self.cq.client_id = str(uuid.uuid4()) # Randomly create a uuid client id
+        if not self.cq.queue_exists( queue_name ):
+            self.cq.create( queue_name )
         self.queue_name = queue_name
+        self.region = region
         self.time_interval = time_interval
 
-class Producer(RaxCloudQueueClient):
 
-    def __init__(self, *args, **kwargs): 
-        super(Producer, self).__init__(*args, **kwargs)
-        #
-        # Create cloud queue if this does not exist.
-        #
-        if not self.cq.queue_exists( self.queue_name ):
-            self.cq.create( self.queue_name )
+class Producer(RaxCloudQueueClient):
 
     def run(self):
         i = 0
@@ -48,6 +65,7 @@ class Producer(RaxCloudQueueClient):
                 self.cq.client_id = client_id
             i += 1
 
+
 class Consumer(RaxCloudQueueClient):
 
     def run( self ):
@@ -61,6 +79,7 @@ class Consumer(RaxCloudQueueClient):
                         i.delete(claim_id=i.claim_id)
                 else:
                     print "No messages to process..."
+                    time.sleep( 5 )
             except pyrax.exceptions.ClientException,e:
                 print "Couldn't claim or delete message: %s" % e
 
@@ -73,75 +92,208 @@ class Status(RaxCloudQueueClient):
             print
             time.sleep( int(self.time_interval) )
 
-class Monitor(RaxCloudQueueClient):
 
-    def __init__(self, *args, **kwargs):
-        super(Monitor, self).__init__(*args, **kwargs)
-        print "args: %s" % args[4]
-        self.au = pyrax.connect_to_autoscale(region=args[4])
+class Monitor(object):
+
+    def __init__( self, rax_cld_queue_client, scaling_group, \
+                  scale_up_threshold=100, scale_dn_threshold=0, \
+                  time_interval=1 ):
+        self.scale_group = scaling_group
+        self.rax_queue = rax_cld_queue_client
+        self.scale_up_threshold = scale_up_threshold # default 100 free
+        self.scale_dn_threshold = scale_dn_threshold # default 0 free
+        self.time_interval = time_interval
+
+    def run(self):
+        while True:
+            pprint(self.rax_queue.cq.get_stats(self.rax_queue.queue_name))
+            try:
+                if self.rax_queue.cq.get_stats(self.rax_queue.queue_name)['free'] > int(self.scale_up_threshold):
+                    self.scale_group.policy_up.execute()
+                    print "Scaling up using policy %s" % self.scale_group.policy_up 
+                elif self.rax_queue.cq.get_stats(self.rax_queue.queue_name)['free'] <= int(self.scale_dn_threshold) and \
+                        self.scale_group.sg.get_state()['active_capacity'] != 0:
+                    self.scale_group.policy_dn.execute()
+                    print "Scaling down using policy %s" % self.scale_group.policy_dn
+            except pyrax.exceptions.Forbidden,e:
+                print "Forbidden next time interval: %s" % e
+                print "Wait for %d seconds for next retry" % (int(self.time_interval) + 20,)
+                time.sleep(int(self.time_interval) + 20 )
+            except pyrax.exceptions.BadRequest,e:
+                print "BadRequest next time interval: %s" % e
+            except pyrax.exceptions.ClientException,e:
+                print "ClientException next time interval: %s" % e
+            time.sleep( int(self.time_interval) )
+
+
+class DemoScalingGroup(object):
+
+    def __init__( self, \
+                  username, \
+                  api_key, \
+                  region, \
+                  group_name, \
+                  server_name='consumer', \
+                  cooldown=None, \
+                  min_entities=None, \
+                  max_entities=None, \
+                  flavor='performance1-1', \
+                  image=None, \
+                  load_balancers=( ), \
+                  networks=[ {'uuid': '11111111-1111-1111-1111-111111111111'}, \
+                                        {'uuid': '00000000-0000-0000-0000-000000000000'} ], \
+                  debug=False ): 
+
+        # set the scaling group attributes
+        pyrax.set_setting('identity_type', 'rackspace')
+        if debug:
+            print "username: %s" % username
+            print "api_key: %s" % api_key
+        pyrax.set_credentials( username, api_key )
         self.sg = None
-        self.policy_up = self.policy_dn = None
+        self.au = pyrax.connect_to_autoscale(region=region)
+        self.server_name = server_name
+        self.load_balancers = load_balancers
+        self.networks = networks
+        self.image = image
+        self.flavor = flavor
 
-    def create_scaling_group(self, group_name, \
-                             min_entities, max_entities, server_name, \
-                             cooldown, flavor, image, scale_up_threshold, scale_dn_threshold, \
-                             load_balancers=(), \
-                             networks=[ {'uuid': '11111111-1111-1111-1111-111111111111'}, \
-                                        {'uuid': '00000000-0000-0000-0000-000000000000'} ] ):
+        if not group_name in [ i.name for i in self.au.list() ]:
+            # set sane default values here scaling group creation
+            self.cooldown = int(cooldown) or 60 # set default
+            self.min_entities = int(min_entities) or 0
+            self.max_entities = int(max_entities) or 1
+            self._create_scaling_group( group_name ) 
+        else:
+            # go ahead and take default here however if they are empty they will
+            # be overriden by an existing scaling group
+            self.cooldown = int(cooldown)
+            self.min_entities = int(min_entities)
+            self.max_entities = int(max_entities)
+            self._get_scaling_group( group_name )
+
+    def _create_scaling_group(self, group_name):
         '''
-        This will create a a scaling group with default values.
+        This will create a scaling group with default values.
         '''
         # metadata = {}
         # load_balancers = ()
-        self.scale_up_threshold = scale_up_threshold
-        self.scale_dn_threshold = scale_dn_threshold
-        self.sg = self.au.create( name=group_name, cooldown=cooldown, min_entities=min_entities, \
-                                  max_entities=max_entities, server_name=server_name, \
-                                  flavor=flavor, image=image, load_balancers=load_balancers, networks=networks, \
-                                  launch_config_type="launch_server", disk_config="AUTO" )
+        self.sg = self.au.create( name=group_name, \
+                                  cooldown=self.cooldown, \
+                                  min_entities=self.min_entities, \
+                                  max_entities=self.max_entities, \
+                                  server_name=self.server_name, \
+                                  flavor=self.flavor, \
+                                  image=self.image, \
+                                  load_balancers=self.load_balancers, \
+                                  networks=self.networks, \
+                                  launch_config_type="launch_server", \
+                                  disk_config="AUTO" )
         self.policy_up = self.sg.add_policy( name="policy up", policy_type="webhook", \
-                                          cooldown=cooldown, change=1 )
+                                          cooldown=self.cooldown, change=1 )
         self.policy_dn = self.sg.add_policy( name="policy down", policy_type="webhook", \
-                                          cooldown=cooldown, change=-1 )
+                                          cooldown=self.cooldown, change=-1 )
 
-    def get_scaling_group(self, group_name, scale_up_threshold, scale_dn_threshold):
-        for sg in self.au.list():
-            if group_name == sg.name:
-                self.sg = sg
-                self.scale_up_threshold = scale_up_threshold
-                self.scale_dn_threshold = scale_dn_threshold
-                # this is horrible but expect just one up policy and one down.
-                for i in sg.policies:
-                    if i.change == 1:
-                       self.policy_up = i
-                    elif i.change == -1:
-                       self.policy_dn = i
+    def _get_scaling_group(self, group_name):
+        sg_dict = dict( [ ( sg.name, sg ) for sg in self.au.list() ] )
+        if group_name in sg_dict:
+            self.sg = sg_dict[sg.name]
+            sg_configs = self.sg.get_configuration()
+            cooldown = self.cooldown or sg_configs['cooldown']
+            min_entities = self.min_entities or sg_configs['minEntities']
+            max_entities = self.max_entities or sg_configs['maxEntities']
+            self.sg.update(cooldown=cooldown, min_entities=min_entities, max_entities=max_entities)
+            self.sg.reload()
+            # update cooldown for policies, keep scaling group and policies with same cooldown
+            for p in self.sg.list_policies():
+               p.update(cooldown=cooldown)
+               p.reload()
+               # just expecting two policies one up one down
+               if p.change == 1:
+                  self.policy_up = p.reload()
+               elif p.change == -1:
+                  self.policy_dn = p.reload()
 
     def delete_scaling_group(self):
         if self.sg:
+            self.sg.update(cooldown=0)
+            self.policy_dn.update(cooldown=1)
+            while self.sg.get_state()['active_capacity'] != 0:
+                self.policy_dn.execute()
+                time.sleep(2)
+                self.sg.reload()
             self.sg.delete()
 
-    def list_policies(self):
-        return self.sg.list_policies()
-    
-    def run(self):
-        while True:
-            pprint(self.cq.get_stats(self.queue_name))
-            try:
-                if self.cq.get_stats(self.queue_name)['free'] > int(self.scale_up_threshold):
-                    self.policy_up.execute()
-                    print "Scaling up using policy %s" % self.policy_up 
-                elif self.cq.get_stats(self.queue_name)['free'] < int(self.scale_dn_threshold) and \
-                        self.sg.get_state()['active_capacity'] != 0:
-                    self.policy_dn.execute()
-                    print "Scaling down using policy %s" % self.policy_dn
-            except pyrax.exceptions.Forbidden,e:
-                print "Policy didn't execute waiting for next time interval: %s" % e
-            except pyrax.exceptions.BadRequest,e:
-                print "Policy didn't execute waiting for next time interval: %s" % e
-            except pyrax.exceptions.ClientException,e:
-                print "Policy didn't execute waiting for next time interval: %s" % e
-            time.sleep( int(self.time_interval) )
+
+class ServerImage(object):
+
+    def __init__( self, \
+                  username, \
+                  api_key, \
+                  region, \
+                  debug=False):
+        pyrax.set_setting('identity_type', 'rackspace')
+        if debug:
+            print "username: %s" % username
+            print "api_key: %s" % api_key
+        pyrax.set_credentials( username, api_key )
+        self.cs = pyrax.connect_to_cloudservers(region=region)
+        self.utils = pyrax.utils
+        self.username = username
+        self.api_key = api_key
+        self.region = region
+
+    def get_server_image( self, image_name ):
+        image_dict = dict( [ (i.name, i) for i in self.cs.list_images() ] )
+        if image_name in image_dict:
+            return image_dict[image_name]
+        else:
+            return None
+
+    def create_server_image( self, \
+                             files, \
+                             snapshot_image_name='consumer-demo-template', \
+                             base_image_name='Ubuntu 13.10 (Saucy Salamander)', \
+                             flavor='performance1-1', \
+                             time_interval=1  ):
+
+        ''' Build server, install docker, pull docker image, and delete server
+        '''
+
+        import paramiko
+        image = self.get_server_image( base_image_name )
+        if image:
+            srv = self.cs.servers.create(snapshot_image_name, image.id, flavor, files=files)
+        else:
+            print "Couldn't find specified base image. Aborting."
+            sys.exit(1)
+        print "Creating server..."
+        self.utils.wait_for_build(srv)
+        password = password_generator()
+        srv.change_password( password )
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy()) 
+        print "Password change taking effect..."
+        time.sleep(5) # give nova time to change the password
+        client.connect(srv.networks['public'][0], username='root', password=password)
+
+        stdin, stdout, stderr = client.exec_command('/bin/bash /tmp/docker_install.sh')
+        for line in stdout:                                         
+            print '... ' + line.strip('\n')
+
+        for docker_instance in range(0, 5): # start up docker 5 instances
+            stdin, stdout, stderr = client.exec_command("/usr/bin/docker run -d raxcloud/queue-demo consumer -u %s \
+                                                        -k %s --region_name %s --time_interval %s" % \
+                                                        ( self.username, self.api_key, self.region, time_interval ))
+            for line in stdout:                                         
+                print '... ' + line.strip('\n')
+
+        image_id = srv.create_image(snapshot_image_name)
+        image = self.cs.images.get(image_id)
+        print "Creating a snapshot of the image..."
+        self.utils.wait_until(image, "status", ["ACTIVE", "ERROR"], attempts=0)
+        srv.delete()
+        return image
 
 
 def main():
@@ -150,7 +302,7 @@ def main():
     #
     mode0 = { "producer" : Producer,
               "consumer" : Consumer,
-              "status"   : Status } 
+              "status"   : Status }
     mode1 = { "monitor"  : Monitor }
     usage = '''Usage: queue_demo.py [options]
 status: print out the queue status
@@ -198,28 +350,58 @@ monitor: use autoscale to spin up or down a server as specified by the options
         parser.print_help()
         print "You need -u or --user option"
         sys.exit(1)
+
     if not options.api_key:
         parser.print_help()
         print "You need -a or --api_key option"
         sys.exit(1)
 
-    if args[0] in mode0: 
+    if args[0] in mode0:
         obj_init = mode0[args[0]]
         m = obj_init(options.user, options.api_key, options.queue_name, options.time_interval, options.region_name, options.debug)
-    elif args[0] in mode1: 
-        obj_init = mode1[args[0]]
-        m = obj_init(options.user, options.api_key, options.queue_name, options.time_interval, options.region_name, options.debug)
-        if not options.image:
-            parser.print_help()
-            print "You need -i or --image option"
-            sys.exit(1)
-        if not options.group_name in [ i.name for i in m.au.list() ]:
-            m.create_scaling_group( options.group_name, int(options.min), int(options.max), \
-                                    options.server_name, int(options.cool_down), options.flavor, \
-                                    options.image, options.scale_up_threshold, options.scale_dn_threshold )
+    elif args[0] in mode1:
+        rax_cld_queue_client = RaxCloudQueueClient( options.user, options.api_key, options.queue_name, \
+                                                    options.time_interval, options.region_name, options.debug )
+
+        if not options.image: # if options.image not set then try and create a image
+            image_obj = ServerImage( username=options.user, \
+                                     api_key=options.api_key, \
+                                     region=options.region_name, \
+                                     debug=options.debug )
+
+            # Retrieve existing snapshot named with snapshot_image_name
+            image = image_obj.get_server_image( image_name='consumer-demo-template')
+
+            if not image:
+                image = image_obj.create_server_image( files=files, \
+                                                          snapshot_image_name='consumer-demo-template', \
+                                                          base_image_name='Ubuntu 13.10 (Saucy Salamander)', \
+                                                          flavor=options.flavor, \
+                                                          time_interval=options.time_interval )
+                if not image:
+                    parser.print_help()
+                    print "You need -i or --image option"
+                    sys.exit(1)
         else:
-            m.get_scaling_group(options.group_name, options.scale_up_threshold, options.scale_dn_threshold)
-            print "Scaling group already exists."
+            image_id = options.image
+
+        scaling_group = DemoScalingGroup( username=options.user, \
+                                          api_key=options.api_key, \
+                                          region=options.region_name, \
+                                          group_name=options.group_name, \
+                                          server_name=options.server_name, \
+                                          cooldown=options.cool_down, \
+                                          min_entities=options.min, \
+                                          max_entities=options.max, \
+                                          flavor=options.flavor, \
+                                          image=image.id, \
+                                          debug=False )
+
+        m = Monitor( rax_cld_queue_client=rax_cld_queue_client, \
+                     scaling_group=scaling_group, \
+                     scale_up_threshold=options.scale_up_threshold, \
+                     scale_dn_threshold=options.scale_dn_threshold, \
+                     time_interval = options.time_interval )
 
     else:
         print "The mode %s doesn't exist it must be one of %s" % (args[0], mode0.keys() + mode1.keys())
