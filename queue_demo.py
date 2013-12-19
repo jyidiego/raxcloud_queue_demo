@@ -4,6 +4,7 @@ from optparse import OptionParser
 from pprint import pprint
 import pyrax
 import random
+import socket
 import string
 import sys
 import time
@@ -279,7 +280,15 @@ class ServerImage(object):
         if self.debug:
             print "srv.networks: %s" % srv.networks
             print "srv.networks['private'][0]: %s" % srv.networks['private'][0]
-        client.connect(srv.networks['private'][0], username='root', password=password)
+
+        try:
+            client.connect(srv.networks['private'][0], username='root', password=password)
+        except socket.error,e:
+            print "hostname: %s" % srv.networks['private'][0]
+            print "Attempted ssh connection on servicenet but failed."
+            print "Couldn't ssh to the template server to run the installation. Are you in the right region?"
+            print "Here's the stack trace and exception: %s" % e
+            sys.exit(1)
 
         stdin, stdout, stderr = client.exec_command('/bin/bash /tmp/docker_install.sh')
         for line in stdout:                                         
