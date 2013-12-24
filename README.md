@@ -1,17 +1,33 @@
 Rackspace Cloud Queue Demo
 ===================
 
-A simple demo of the rackspace cloud queues. This particular demo shows a simple work queue (Producer/Consumer or transactional job queue). To setup this demo run:
+A simple demo of the rackspace cloud queues. This particular demo shows a simple work queue (Producer/Consumer or transactional job queue). To setup this demo do the following:
 
 ```
-producer:
+1. First you need start the monitoring process for example:
 
-    docker run -d raxcloud/queue-demo producer -u <username> -k <apikey>
+docker run -d raxcloud/queue-demo monitor -u test000 -k fffffffeeeeeee --region_name IAD -x 1 -m 0 -j 100 -n 0
 
+-x is maximum number of servers
+-m is minimum number of servers
+-j is upper threshold for free messages on the queue (scale up trigger)
+-n is the lower threshold for messages on the queue (scale down trigger)
 
-consumer:
+If this is the first time you've run the demo it may take a while as it does the following:
+  1. create the autoscale scaling group (default name demo)
+  2. create the cloud queue (default name demo0000)
+  3. create a cloud server
+  4. install docker on the server
+  5. run a container on docker service
+  6. take a snapshot of the cloud server (demo-consumer-template)
+  7. delete the cloud server
 
-    docker run -d raxcloud/queue-demo consumer -u <username> -k <apikey>
+2. Once you've set up the monitoring process, you need to run the producer to get messages on the queue.
+
+docker run -d raxcloud/queue-demo producer -u test000 -k fffffffeeeeeee --region_name IAD --time_interval 1  
+
+--time_interval is the number of seconds between a single message being placed on the queue
+
 ```
 
 
