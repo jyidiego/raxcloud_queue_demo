@@ -16,7 +16,7 @@ docker run -d raxcloud/queue-demo monitor -u test000 -k fffffffeeeeeee --region_
 If this is the first time you've run the demo it may take a while as it does the following:
   1. create the autoscale scaling group (default name demo)
   2. create the cloud queue (default name demo0000)
-  3. create a cloud server
+  3. create a cloudserver
   4. install docker on the server
   5. run a container on docker service
   6. take a snapshot of the cloud server (demo-consumer-template)
