@@ -19,7 +19,7 @@ If this is the first time you've run the demo it may take a while as it does the
   3. create a cloudserver
   4. install docker on the server
   5. run a container on docker service
-  6. take a snapshot of the cloud server (demo-consumer-template)
+  6. take a snapshot of the cloud server (consumer-demo-template)
   7. delete the cloud server
 
 2. Once you've set up the monitoring process, you need to run the producer to get messages on the queue.
@@ -40,6 +40,9 @@ status: print out the queue status
 consumer: claim and delete a message of the queue as specified by the options
 producer: add a message onto the queue as specified by the options
 monitor: use autoscale to spin up or down a server as specified by the options
+delete: remove autoscale group by name. currently you have to delete queues
+        manually. (if a server was provisioned by the scaling group that will
+        be removed by this action.)
 
 Options:
   -h, --help            show this help message and exit

@@ -359,6 +359,10 @@ status: print out the queue status
 consumer: claim and delete a message of the queue as specified by the options
 producer: add a message onto the queue as specified by the options
 monitor: use autoscale to spin up or down a server as specified by the options
+delete: remove autoscale group by name. currently you have to delete queues
+        manually. (if a server was provisioned by the scaling group that will
+        be removed by this action.)
+
 '''
     parser = OptionParser(usage=usage)
     parser.add_option("-u", "--user", dest="user", help="username")
