@@ -240,7 +240,7 @@ class DemoScalingGroup(object):
 
     def delete_scaling_group(self):
         if self.sg:
-            self.sg.update(cooldown=0)
+            self.sg.update(cooldown=0, min_entities=0)
             self.policy_dn.update(cooldown=1)
             while self.sg.get_state()['active_capacity'] != 0:
                 self.policy_dn.execute()
