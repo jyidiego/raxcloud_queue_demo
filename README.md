@@ -130,7 +130,7 @@ Setting up the Demo
 ```
 1. First you need start the monitoring process for example:
 
-docker run -d raxcloud/queue-demo monitor -u <rackspace username> -k <rackspace api key> \
+docker run -d raxcloud/queue-demo monitor -u <username> -k <api key> \
 --region_name IAD -x 1 -m 0 -j 100 -n 0
 
 -x is maximum number of servers
@@ -149,7 +149,7 @@ If this is the first time you've run the demo it may take a while as it does the
 
 2. Once you've set up the monitoring process, you need to run the producer to get messages on the queue.
 
-docker run -d raxcloud/queue-demo producer -u test000 -k fffffffeeeeeee --region_name IAD --time_interval 1  
+docker run -d raxcloud/queue-demo producer -u <username> -k <api key> --region_name IAD --time_interval 1  
 
 --time_interval is the number of seconds between a single message being placed on the queue
 
