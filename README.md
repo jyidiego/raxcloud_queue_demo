@@ -18,8 +18,10 @@ where username and password is the Rackspace username and password you use to lo
 into the cloud control panel. OS_TENANT_ID just needs to be defined but leave
 that blank as above
 
+
 2. Get the Ubuntu 13.10 image id by running the following:
 IMG_ID=$(nova image-list | grep 'Ubuntu 13.10' | cut -d'|' -f2)
+
 
 3. Once you have an IMG_ID environment variable run nova to provision a server:
 nova boot --flavor performance1-1 --image $IMG_ID --poll queue.demo
@@ -52,6 +54,7 @@ You should see something similiar to this:
 +------------------------+--------------------------------------+
 Instance building... 100% complete
 Finished
+
 
 4. ssh into your completed server, you can use nova to do this by running:
 nova ssh queue.demo
@@ -86,6 +89,7 @@ EOF
 Then run:
 root@queue:~# bash /tmp/docker_install.sh
 
+
 6. Verify that docker was installed correctly by doing the following:
 root@queue:~# docker run -i -t ubuntu:12.10 bash
 Unable to find image 'ubuntu:12.10' (tag: 12.10) locally
@@ -101,7 +105,8 @@ Exit the container:
 root@af2db68e3262:/# exit
 exit
 
-Pull the queue-demo from the docker registry
+
+7. Pull the queue-demo from the docker registry
 root@queue:~# docker pull raxcloud/queue-demo
 
 You should see:
