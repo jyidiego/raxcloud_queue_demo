@@ -53,7 +53,7 @@ You should see something similiar to this:
 Instance building... 100% complete
 Finished
 
-4. ssh into your completed server, you can use nova to do this:
+4. ssh into your completed server, you can use nova to do this by running:
 nova ssh queue.demo
 
 You'll see something similiar to this:
@@ -72,15 +72,51 @@ applicable law.
 
 root@queue:~# 
 
+
 5. Once logged in install docker by running the following sequence of commands (you can copy and paste):
+cat <<EOF > /tmp/docker_install.sh
 apt-get update
 apt-get -y install linux-image-extra-`uname -r`
 sh -c "wget -qO- https://get.docker.io/gpg | apt-key add -"
 sh -c "echo deb http://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list"
 apt-get update
 apt-get -y install lxc-docker
+EOF
 
-6. 
+Then run:
+root@queue:~# bash /tmp/docker_install.sh
+
+6. Verify that docker was installed correctly by doing the following:
+root@queue:~# docker run -i -t ubuntu:12.10 bash
+Unable to find image 'ubuntu:12.10' (tag: 12.10) locally
+Pulling repository ubuntu
+b750fe79269d: Download complete 
+27cf78414709: Download complete 
+
+Type hostname to verify your in the container:
+root@af2db68e3262:/# hostname
+af2db68e3262
+
+Exit the container:
+root@af2db68e3262:/# exit
+exit
+
+Pull the queue-demo from the docker registry
+root@queue:~# docker pull raxcloud/queue-demo
+
+You should see:
+Pulling repository raxcloud/queue-demo
+babc815ad36f: Download complete 
+27cf78414709: Download complete 
+b750fe79269d: Download complete 
+6acd24ff2183: Download complete 
+3cc2dc19c052: Download complete 
+0f44a23a4e43: Download complete 
+de96c1029bfc: Download complete 
+791d8ad51d49: Download complete 
+3613148d5f3d: Download complete 
+0afc74fad907: Download complete 
+bee739d4bf76: Download complete 
 
 ```
 
