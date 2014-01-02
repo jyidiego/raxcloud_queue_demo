@@ -166,6 +166,8 @@ class DemoScalingGroup(object):
         if debug:
             print "username: %s" % username
             print "api_key: %s" % api_key
+            print "min_entites beg: %s" % min_entities
+            print "max_entites beg: %s" % max_entities
         pyrax.set_credentials(username, api_key)
         self.sg = None
         self.au = pyrax.connect_to_autoscale(region=region)
@@ -174,6 +176,7 @@ class DemoScalingGroup(object):
         self.networks = networks
         self.image = image
         self.flavor = flavor
+        self.debug = debug
 
         if not group_name in [i.name for i in self.au.list()]:
             # set sane default values here scaling group creation
@@ -240,7 +243,8 @@ class DemoScalingGroup(object):
 
     def delete_scaling_group(self):
         if self.sg:
-            self.sg.update(cooldown=0, min_entities=0)
+            self.sg.update(cooldown=0, min_entities=0, max_entities=0)
+            self.sg.reload()
             self.policy_dn.update(cooldown=1)
             while self.sg.get_state()['active_capacity'] != 0:
                 self.policy_dn.execute()
@@ -427,7 +431,7 @@ delete: remove autoscale group by name. currently you have to delete queues
                                                  server_name=options.server_name,
                                                  cooldown=0,
                                                  min_entities=0,
-                                                 max_entities=1,
+                                                 max_entities=0,
                                                  flavor=options.flavor,
                                                  image=None,
                                                  debug=False)
