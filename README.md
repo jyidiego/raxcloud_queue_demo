@@ -130,7 +130,7 @@ Setting up the Demo
 ```
 1. First you need start the monitoring process for example:
 
-docker run -d raxcloud/queue-demo monitor -u test000 -k fffffffeeeeeee \
+docker run -d raxcloud/queue-demo monitor -u <rackspace username> -k <rackspace api key> \
 --region_name IAD -x 1 -m 0 -j 100 -n 0
 
 -x is maximum number of servers
