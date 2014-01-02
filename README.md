@@ -211,5 +211,5 @@ Although queue-demo doesn't clean up all the objects it creates (queue and serve
 clean up the scaling group and any servers associated with it. You do this by running:
 ```
 docker run raxcloud/queue-demo delete # this will delete the demo scaling group by default
-docker run raxcloud/queue-demo delete <scaling group name>
+docker run raxcloud/queue-demo delete --group_name <scaling group name>
 ```
