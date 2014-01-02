@@ -204,3 +204,12 @@ Options:
                         Number of messages (i.e. not claimed) to trigger scale
                         down
 ```
+
+Deleting the scaling group
+--------------------------
+Although queue-demo doesn't clean up all the objects it creates (queue and server image) it will
+clean up the scaling group and any servers associated with it. You do this by running:
+```
+docker run raxcloud/queue-demo delete # this will delete the demo scaling group by default
+docker run raxcloud/queue-demo delete <scaling group name>
+```
