@@ -3,6 +3,14 @@ Rackspace Cloud Queue Demo
 
 A simple demo of the rackspace cloud queues. This particular demo shows a simple work queue (Producer/Consumer or transactional job queue). To setup this demo do the following:
 
+Installing Docker
+-----------------
+```
+1. 
+```
+
+Setting up the Demo
+-------------------
 ```
 1. First you need start the monitoring process for example:
 
