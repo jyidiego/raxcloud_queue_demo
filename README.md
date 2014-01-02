@@ -7,7 +7,7 @@ Installing Docker
 -----------------
 ```
 You'll need to provision a server with docker installed on it. The following
-instructions will provision a Rackspace cloudserver.
+instructions will provision a Rackspace cloudserver with docker.
 1. Setup the environment variables for the nova client:
 OS_REGION_NAME=IAD
 OS_TENANT_ID= 
