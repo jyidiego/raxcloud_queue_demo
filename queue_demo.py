@@ -210,8 +210,8 @@ class DemoScalingGroup(object):
                                  load_balancers=self.load_balancers,
                                  networks=self.networks,
                                  launch_config_type="launch_server",
-                                 disk_config="AUTO",
-                                 metadata=metadata)
+                                 disk_config="AUTO")
+        self.sg.update(metadata=metadata)
 
         self.policy_up = self.sg.add_policy(name="policy up",
                                             policy_type="webhook",
@@ -231,7 +231,6 @@ class DemoScalingGroup(object):
             cooldown = self.cooldown or sg_configs['cooldown']
             min_entities = self.min_entities or sg_configs['minEntities']
             max_entities = self.max_entities or sg_configs['maxEntities']
-            print "metadata: %s" % metadata
             if metadata:
                 self.sg.update(cooldown=cooldown,
                                min_entities=min_entities,
@@ -435,7 +434,12 @@ delete: remove autoscale group by name. currently you have to delete queues
 
     if args[0] in mode0:
         obj_init = mode0[args[0]]
-        m = obj_init(options.user, options.api_key, options.queue_name, options.time_interval, options.region_name, options.debug)
+        m = obj_init(options.user,
+                     options.api_key,
+                     options.queue_name,
+                     options.time_interval,
+                     options.region_name,
+                     options.debug)
     elif args[0] in mode1:
         if args[0] == 'delete':
             pyrax.set_setting('identity_type', 'rackspace')
@@ -496,9 +500,8 @@ delete: remove autoscale group by name. currently you have to delete queues
             # image object sometime in the future
             image = cs.images.get(options.image)
 
-        metadata = {}
-        metadata['queue_id'] = rax_cld_queue_client.queue_name
-        metadata['snapshot_id'] = image.id
+        metadata = {'queue_id' : rax_cld_queue_client.queue_name,
+                    'snapshot_id' : image.id}
 
         scaling_group = DemoScalingGroup(username=options.user,
                                          api_key=options.api_key,
