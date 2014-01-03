@@ -128,7 +128,8 @@ bee739d4bf76: Download complete
 Setting up the Demo
 -------------------
 ```
-1. First you need start the monitoring process for example:
+1. First you need start the monitoring process. If this is the first time that you've
+run this demo expect this step to take about 10 minutes. To run the monitoring process:
 
 docker run -d raxcloud/queue-demo monitor -u <username> -k <api key> \
 --region_name IAD -x 1 -m 0 -j 100 -n 0
@@ -207,8 +208,8 @@ Options:
 
 Deleting the scaling group
 --------------------------
-Although queue-demo doesn't clean up all the objects it creates (queue and server image) it will
-clean up the scaling group and any servers associated with it. You do this by running:
+In addition to the scaling group this will remove the queue and server image created at the start of
+the demo. You do this by running:
 ```
 # this will delete the demo scaling group by default
 docker run raxcloud/queue-demo -u <username> -k <api key> --region_name IAD delete
