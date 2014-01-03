@@ -159,6 +159,7 @@ class DemoScalingGroup(object):
                  load_balancers=(),
                  networks=[{'uuid': '11111111-1111-1111-1111-111111111111'},
                             {'uuid': '00000000-0000-0000-0000-000000000000'}],
+                 metadata={},
                  debug=False):
 
         # set the scaling group attributes
@@ -171,6 +172,8 @@ class DemoScalingGroup(object):
         pyrax.set_credentials(username, api_key)
         self.sg = None
         self.au = pyrax.connect_to_autoscale(region=region)
+        self.cq = pyrax.connect_to_queues(region=region)
+        self.cs = pyrax.connect_to_cloudservers(region=region)
         self.server_name = server_name
         self.load_balancers = load_balancers
         self.networks = networks
@@ -183,20 +186,19 @@ class DemoScalingGroup(object):
             self.cooldown = int(cooldown) or 60  # set default 60
             self.min_entities = int(min_entities) or 0  # set default to 0
             self.max_entities = int(max_entities) or 1  # set default to 1
-            self._create_scaling_group(group_name)
+            self._create_scaling_group(group_name, metadata)
         else:
             # go ahead and take default here however if they are empty they will
             # be overriden by an existing scaling group
             self.cooldown = int(cooldown)
             self.min_entities = int(min_entities)
             self.max_entities = int(max_entities)
-            self._get_scaling_group(group_name)
+            self._get_scaling_group(group_name, metadata)
 
-    def _create_scaling_group(self, group_name):
+    def _create_scaling_group(self, group_name, metadata):
         '''
         This will create a scaling group with default values.
         '''
-        # metadata = {}
         # load_balancers = ()
         self.sg = self.au.create(name=group_name,
                                  cooldown=self.cooldown,
@@ -208,7 +210,8 @@ class DemoScalingGroup(object):
                                  load_balancers=self.load_balancers,
                                  networks=self.networks,
                                  launch_config_type="launch_server",
-                                 disk_config="AUTO")
+                                 disk_config="AUTO",
+                                 metadata=metadata)
 
         self.policy_up = self.sg.add_policy(name="policy up",
                                             policy_type="webhook",
@@ -220,7 +223,7 @@ class DemoScalingGroup(object):
                                             cooldown=self.cooldown,
                                             change=-1)
 
-    def _get_scaling_group(self, group_name):
+    def _get_scaling_group(self, group_name, metadata):
         sg_dict = dict([(sg.name, sg) for sg in self.au.list()])
         if group_name in sg_dict:
             self.sg = sg_dict[sg.name]
@@ -228,7 +231,17 @@ class DemoScalingGroup(object):
             cooldown = self.cooldown or sg_configs['cooldown']
             min_entities = self.min_entities or sg_configs['minEntities']
             max_entities = self.max_entities or sg_configs['maxEntities']
-            self.sg.update(cooldown=cooldown, min_entities=min_entities, max_entities=max_entities)
+            print "metadata: %s" % metadata
+            if metadata:
+                self.sg.update(cooldown=cooldown,
+                               min_entities=min_entities,
+                               max_entities=max_entities,
+                               metadata=metadata)
+            else:
+                self.sg.update(cooldown=cooldown,
+                               min_entities=min_entities,
+                               max_entities=max_entities)
+                
             self.sg.reload()
             # update cooldown for policies, keep scaling group and policies with same cooldown
             for p in self.sg.list_policies():
@@ -250,6 +263,12 @@ class DemoScalingGroup(object):
                 self.policy_dn.execute()
                 time.sleep(2)
                 self.sg.reload()
+            snapshot_id = self.sg.metadata['snapshot_id']
+            cs = self.cs.images.get(snapshot_id)
+            cs.delete()
+            queue_id = self.sg.metadata['queue_id']
+            cq = self.cq.get(queue_id)
+            cq.delete()
             self.sg.delete()
 
 
@@ -477,6 +496,10 @@ delete: remove autoscale group by name. currently you have to delete queues
             # image object sometime in the future
             image = cs.images.get(options.image)
 
+        metadata = {}
+        metadata['queue_id'] = rax_cld_queue_client.queue_name
+        metadata['snapshot_id'] = image.id
+
         scaling_group = DemoScalingGroup(username=options.user,
                                          api_key=options.api_key,
                                          region=options.region_name,
@@ -487,6 +510,7 @@ delete: remove autoscale group by name. currently you have to delete queues
                                          max_entities=options.max,
                                          flavor=options.flavor,
                                          image=image.id,
+                                         metadata=metadata,
                                          debug=False)
 
         m = Monitor(rax_cld_queue_client=rax_cld_queue_client,
