@@ -23,13 +23,54 @@ sh -c "echo deb http://get.docker.io/ubuntu docker main > /etc/apt/sources.list.
 apt-get update
 apt-get -y install lxc-docker
 '''
-
+# pass files to pyrax(nova client) to create this file on the server
 files = {"/tmp/docker_install.sh": docker_install}
-
 
 def password_generator():
     characters = string.ascii_letters + '@!_#$&' + string.digits
     return "".join(random.choice(characters) for x in range(random.randint(8, 15)))
+
+
+class Provisioner(object):
+    def __init__(self):
+        raise NotImplementedError
+
+    def run(self):
+        raise NotImplementedError
+
+
+class ShellProvisioner(Provisioner):
+
+    ''' Runs scripts and cmds to setup application on a server. Term stole from Vagrant's
+        provisioner for application and configuration of a server.
+    '''
+
+    def __init__(self, cmds, client=None):
+
+        ''' client: paramiko client that is already authenticated with server
+            cmds: array of commands to run
+        '''
+        self.client = client
+        self.cmds = cmds
+
+    def set_client(self, client):
+        self.client = client
+
+    def run(self):
+        print "Installing docker"
+        stdin, stdout, stderr = self.client.exec_command(cmds[0])
+
+        # print out stdout of the command execution
+        for line in stdout:
+            print '... ' + line.strip('\n')
+
+        # run docker container 5 times
+        for docker_instance in range(0, 5):
+            stdin, stdout, stderr = client.exec_command(cmds[1])
+
+            # print out stdout of the command execution
+            for line in stdout:
+                print '... ' + line.strip('\n')
 
 
 class RaxCloudQueueClient(object):
@@ -303,7 +344,8 @@ class ServerImage(object):
                             snapshot_image_name='consumer-demo-template',
                             base_image_name='Ubuntu 13.10 (Saucy Salamander)',
                             flavor='performance1-1',
-                            time_interval=1):
+                            time_interval=1,
+                            provisioner)
 
         ''' Build server, install docker, pull docker image, and delete server
         '''
@@ -336,23 +378,8 @@ class ServerImage(object):
             print "Here's the stack trace and exception: %s" % e
             sys.exit(1)
 
-        stdin, stdout, stderr = client.exec_command('/bin/bash /tmp/docker_install.sh')
-
-        # print out stdout of the command execution
-        for line in stdout:
-            print '... ' + line.strip('\n')
-
-        # run docker container
-        cmd = "/usr/bin/docker run -d raxcloud/queue-demo consumer -u %s -k %s --region_name %s --time_interval %s" % \
-                                                         (self.username, self.api_key, self.region, time_interval)
-
-        # run docker container 5 times
-        for docker_instance in range(0, 5):
-            stdin, stdout, stderr = client.exec_command(cmd)
-
-            # print out stdout of the command execution
-            for line in stdout:
-                print '... ' + line.strip('\n')
+        provisioner.set_client(client)
+        provisioner.run()
 
         image_id = srv.create_image(snapshot_image_name)
         image = self.cs.images.get(image_id)
@@ -484,11 +511,19 @@ delete: remove autoscale group by name. currently you have to delete queues
             image = image_obj.get_server_image(image_name='consumer-demo-template')
 
             if not image:
+                # we installed the /tmp/docker_install.sh file with the arg files, installing it here
+                install_docker = '/bin/bash /tmp/docker_install.sh'
+                start_containers = \
+                    "/usr/bin/docker run -d raxcloud/queue-demo consumer -u %s -k %s --region_name %s --time_interval %s" \
+                                                      % (options.username, options.api_key,
+                                                         options.region_name, options.time_interval)
+                shell_provisioner = ShellProvisioner( [ install_docker, start_containers ] )
                 image = image_obj.create_server_image(files=files,
                                                       snapshot_image_name='consumer-demo-template',
                                                       base_image_name='Ubuntu 13.10 (Saucy Salamander)',
                                                       flavor=options.flavor,
-                                                      time_interval=options.time_interval)
+                                                      time_interval=options.time_interval,
+                                                      provisioner=shell_provisioner)
                 if not image:
                     parser.print_help()
                     print "You need -i or --image option"
