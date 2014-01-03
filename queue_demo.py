@@ -58,7 +58,7 @@ class ShellProvisioner(Provisioner):
 
     def run(self):
         print "Installing docker"
-        stdin, stdout, stderr = self.client.exec_command(cmds[0])
+        stdin, stdout, stderr = self.client.exec_command(self.cmds[0])
 
         # print out stdout of the command execution
         for line in stdout:
@@ -66,7 +66,7 @@ class ShellProvisioner(Provisioner):
 
         # run docker container 5 times
         for docker_instance in range(0, 5):
-            stdin, stdout, stderr = client.exec_command(cmds[1])
+            stdin, stdout, stderr = self.client.exec_command(self.cmds[1])
 
             # print out stdout of the command execution
             for line in stdout:
@@ -341,11 +341,11 @@ class ServerImage(object):
 
     def create_server_image(self,
                             files,
+                            provisioner,
                             snapshot_image_name='consumer-demo-template',
                             base_image_name='Ubuntu 13.10 (Saucy Salamander)',
                             flavor='performance1-1',
-                            time_interval=1,
-                            provisioner)
+                            time_interval=1):
 
         ''' Build server, install docker, pull docker image, and delete server
         '''
@@ -515,15 +515,17 @@ delete: remove autoscale group by name. currently you have to delete queues
                 install_docker = '/bin/bash /tmp/docker_install.sh'
                 start_containers = \
                     "/usr/bin/docker run -d raxcloud/queue-demo consumer -u %s -k %s --region_name %s --time_interval %s" \
-                                                      % (options.username, options.api_key,
-                                                         options.region_name, options.time_interval)
+                                                      % (options.user,
+                                                         options.api_key,
+                                                         options.region_name,
+                                                         options.time_interval)
                 shell_provisioner = ShellProvisioner( [ install_docker, start_containers ] )
                 image = image_obj.create_server_image(files=files,
+                                                      provisioner=shell_provisioner,
                                                       snapshot_image_name='consumer-demo-template',
                                                       base_image_name='Ubuntu 13.10 (Saucy Salamander)',
                                                       flavor=options.flavor,
-                                                      time_interval=options.time_interval,
-                                                      provisioner=shell_provisioner)
+                                                      time_interval=options.time_interval)
                 if not image:
                     parser.print_help()
                     print "You need -i or --image option"
