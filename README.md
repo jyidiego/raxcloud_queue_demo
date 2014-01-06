@@ -5,6 +5,7 @@ A simple demo of the rackspace cloud queues. This particular demo shows a simple
 
 Installing Docker
 -----------------
+The easiest way to install docker is by using the Rackspace deployments. There you'll find, "Single Linux server with docker" It should install the latest even though the one specified is docker 0.5. You can also follow the instructions below:
 ```
 You'll need to provision a server with docker installed on it. The following
 instructions will provision a Rackspace cloudserver with docker.
