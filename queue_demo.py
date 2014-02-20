@@ -11,6 +11,11 @@ import time
 import uuid
 
 #
+# Let's start catching exceptions
+#
+from pyrax.exceptions import AuthenticationFailed
+
+#
 # Install file for docker
 #
 docker_install = '''#!/bin/bash
@@ -570,4 +575,8 @@ delete: remove autoscale group by name. currently you have to delete queues
         print "Bye!"
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except AuthenticationFailed, e:
+        print "Exception: %s" % e
+        print "Check your username or api_key."
